@@ -9,31 +9,29 @@ app.use(express.json());
 
 const messages = [];
 const waitingClients = [];
+let version = 0;
 
-// GET — support polling and long-polling using: ?since= and ?longpoll=true
 app.get("/messages", (req, res) => {
   const since = req.query.since;
   const longpoll = req.query.longpoll === "true";
 
-  let messagesToSend;
-
-  if (since) {
-    const sinceTime = Number(since);
-    messagesToSend = messages.filter(
-      (m) => m.timestamp > sinceTime || (m.updatedAt && m.updatedAt > sinceTime)
-    );
-  } else {
-    messagesToSend = [...messages];
+  if (!since) {
+    return res.json({ version, messages });
   }
 
-  if (longpoll && messagesToSend.length === 0) {
-    waitingClients.push((msg) => res.json(msg));
+  const sinceVersion = Number(since);
+
+  if (version > sinceVersion) {
+    return res.json({ version, messages });
+  }
+
+  if (longpoll) {
+    waitingClients.push(() => res.json({ version, messages }));
   } else {
-    res.json(messagesToSend);
+    res.json({ version, messages });
   }
 });
 
-// POST — send message
 app.post("/messages", (req, res) => {
   const { user, text } = req.body;
 
@@ -42,21 +40,20 @@ app.post("/messages", (req, res) => {
   }
 
   const message = {
-		id: messages.length,
-		user: user.trim(),
-		text: text.trim(),
-		timestamp: Date.now(),
-		updatedAt: null,
-		likes: 0,
-		dislikes: 0,
-	};
+    id: messages.length,
+    user: user.trim(),
+    text: text.trim(),
+    timestamp: Date.now(),
+    likes: 0,
+    dislikes: 0,
+  };
 
   messages.push(message);
+  version++;
 
-  // Notify client using long polling
   while (waitingClients.length > 0) {
     const callback = waitingClients.pop();
-    callback([message]);
+    callback();
   }
 
   res.json(message);
@@ -80,12 +77,11 @@ app.post("/messages/:id/react", (req, res) => {
     messages[id].dislikes++;
   }
 
-  messages[id].updatedAt = Date.now();
+  version++;
 
-  // Notify clients in long-polling
   while (waitingClients.length > 0) {
     const callback = waitingClients.pop();
-    callback([messages[id]]);
+    callback();
   }
 
   res.json(messages[id]);
