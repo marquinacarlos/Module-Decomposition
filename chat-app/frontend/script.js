@@ -1,4 +1,3 @@
-// Change this to your deployed backend URL when you deploy
 const API_URL = "http://localhost:3000";
 
 const messagesDiv = document.getElementById("messages");
@@ -34,14 +33,34 @@ function render() {
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
-// Polling — pregunta cada 100ms por mensajes nuevos
+// Polling — checks for new messages every 100 milliseconds
+// // const keepFetchingMessages = async () => {
+// //   try {
+// //     const lastTime =
+// //       state.messages.length > 0
+// //         ? state.messages[state.messages.length - 1].timestamp
+// //         : null;
+// //     const query = lastTime ? `?since=${lastTime}` : "";
+// //     const response = await fetch(`${API_URL}/messages${query}`);
+// //     const newMessages = await response.json();
+// //     if (newMessages.length > 0) {
+// //       state.messages.push(...newMessages);
+// //       render();
+// //     }
+// //   } catch (error) {
+// //     console.error("Error fetching messages:", error);
+// //   }
+// //   setTimeout(keepFetchingMessages, 100);
+// // };
+
+// Long-polling — the server will not respond until there are new messages
 const keepFetchingMessages = async () => {
   try {
     const lastTime =
       state.messages.length > 0
         ? state.messages[state.messages.length - 1].timestamp
         : null;
-    const query = lastTime ? `?since=${lastTime}` : "";
+    const query = lastTime ? `?since=${lastTime}&longpoll=true` : "";
     const response = await fetch(`${API_URL}/messages${query}`);
     const newMessages = await response.json();
     if (newMessages.length > 0) {
@@ -50,8 +69,10 @@ const keepFetchingMessages = async () => {
     }
   } catch (error) {
     console.error("Error fetching messages:", error);
+		// wait 2 seconds if an error occurs before retrying
+    await new Promise((resolve) => setTimeout(resolve, 2000)); // this is called "async sleep" o "promisified setTimeout" tecnic
   }
-  setTimeout(keepFetchingMessages, 100);
+  keepFetchingMessages();
 };
 
 async function sendMessage() {
