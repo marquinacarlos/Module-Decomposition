@@ -19,7 +19,9 @@ app.get("/messages", (req, res) => {
 
   if (since) {
     const sinceTime = Number(since);
-    messagesToSend = messages.filter((m) => m.timestamp > sinceTime);
+    messagesToSend = messages.filter(
+      (m) => m.timestamp > sinceTime || (m.updatedAt && m.updatedAt > sinceTime)
+    );
   } else {
     messagesToSend = [...messages];
   }
@@ -40,13 +42,14 @@ app.post("/messages", (req, res) => {
   }
 
   const message = {
-    id: messages.length,
-    user: user.trim(),
-    text: text.trim(),
-    timestamp: Date.now(),
-    likes: 0,
-    dislikes: 0,
-  };
+		id: messages.length,
+		user: user.trim(),
+		text: text.trim(),
+		timestamp: Date.now(),
+		updatedAt: null,
+		likes: 0,
+		dislikes: 0,
+	};
 
   messages.push(message);
 
@@ -59,7 +62,6 @@ app.post("/messages", (req, res) => {
   res.json(message);
 });
 
-// POST — like o dislike
 app.post("/messages/:id/react", (req, res) => {
   const id = Number(req.params.id);
   const { reaction } = req.body;
@@ -76,6 +78,14 @@ app.post("/messages/:id/react", (req, res) => {
     messages[id].likes++;
   } else {
     messages[id].dislikes++;
+  }
+
+  messages[id].updatedAt = Date.now();
+
+  // Notify clients in long-polling
+  while (waitingClients.length > 0) {
+    const callback = waitingClients.pop();
+    callback([messages[id]]);
   }
 
   res.json(messages[id]);
