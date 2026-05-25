@@ -62,15 +62,25 @@ const keepFetchingMessages = async () => {
         : null;
     const query = lastTime ? `?since=${lastTime}&longpoll=true` : "";
     const response = await fetch(`${API_URL}/messages${query}`);
-    const newMessages = await response.json();
-    if (newMessages.length > 0) {
-      state.messages.push(...newMessages);
+    const incoming = await response.json();
+
+    for (const msg of incoming) {
+      const existing = state.messages.find((m) => m.id === msg.id);
+      if (existing) {
+        existing.likes = msg.likes;
+        existing.dislikes = msg.dislikes;
+        existing.updatedAt = msg.updatedAt;
+      } else {
+        state.messages.push(msg);
+      }
+    }
+
+    if (incoming.length > 0) {
       render();
     }
   } catch (error) {
     console.error("Error fetching messages:", error);
-		// wait 2 seconds if an error occurs before retrying
-    await new Promise((resolve) => setTimeout(resolve, 2000)); // this is called "async sleep" o "promisified setTimeout" tecnic
+    await new Promise((r) => setTimeout(r, 2000));
   }
   keepFetchingMessages();
 };
