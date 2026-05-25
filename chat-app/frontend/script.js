@@ -1,4 +1,4 @@
-const API_URL = "http://localhost:3000";
+const API_URL = "http://ko8u57es1w04smno15yt9wcw.178.105.39.91.sslip.io";
 
 const messagesDiv = document.getElementById("messages");
 const inputUser = document.getElementById("input-user");
