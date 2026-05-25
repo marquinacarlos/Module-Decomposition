@@ -7,6 +7,7 @@ const sendBtn = document.getElementById("send-btn");
 const status = document.getElementById("status");
 
 const state = { messages: [] };
+let lastVersion = 0;
 
 function formatTime(timestamp) {
   return new Date(timestamp).toLocaleTimeString();
@@ -33,49 +34,15 @@ function render() {
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
 
-// Polling — checks for new messages every 100 milliseconds
-// // const keepFetchingMessages = async () => {
-// //   try {
-// //     const lastTime =
-// //       state.messages.length > 0
-// //         ? state.messages[state.messages.length - 1].timestamp
-// //         : null;
-// //     const query = lastTime ? `?since=${lastTime}` : "";
-// //     const response = await fetch(`${API_URL}/messages${query}`);
-// //     const newMessages = await response.json();
-// //     if (newMessages.length > 0) {
-// //       state.messages.push(...newMessages);
-// //       render();
-// //     }
-// //   } catch (error) {
-// //     console.error("Error fetching messages:", error);
-// //   }
-// //   setTimeout(keepFetchingMessages, 100);
-// // };
-
-// Long-polling — the server will not respond until there are new messages
 const keepFetchingMessages = async () => {
   try {
-    const lastTime =
-      state.messages.length > 0
-        ? state.messages[state.messages.length - 1].timestamp
-        : null;
-    const query = lastTime ? `?since=${lastTime}&longpoll=true` : "";
+    const query = `?since=${lastVersion}&longpoll=true`;
     const response = await fetch(`${API_URL}/messages${query}`);
-    const incoming = await response.json();
+    const data = await response.json();
 
-    for (const msg of incoming) {
-      const existing = state.messages.find((m) => m.id === msg.id);
-      if (existing) {
-        existing.likes = msg.likes;
-        existing.dislikes = msg.dislikes;
-        existing.updatedAt = msg.updatedAt;
-      } else {
-        state.messages.push(msg);
-      }
-    }
-
-    if (incoming.length > 0) {
+    if (data.version > lastVersion) {
+      lastVersion = data.version;
+      state.messages = data.messages;
       render();
     }
   } catch (error) {
